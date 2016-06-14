@@ -219,6 +219,9 @@ Automatic provide an OBD-II dongle for cars
     * If you have teen drivers and are so inclined, might encourage them to
       start saving for their own car without your monitoring. ☺
     * If you run your own business, easier to account for expensible travel
+2. App or service which takes `ignition:on`, looks at the location data, looks
+   at the location of your phone, and alarms or phones you if there's an
+   apparent discrepancy.
 
 ---
 
@@ -388,6 +391,7 @@ Politics and power.
   source for real data?  How often?
 * Rate-limits!  Especially if data is not valid
 * **Always** require HTTPS, with valid certificate.
+    + Some senders care about data privacy and also require HTTPS
 * If accepting from specific services, implement verification for their sending authentication mechanism
 * Secrets leak!  How do you handle rotation?
 * Will you want multiple services to send to you?  With what content format?
