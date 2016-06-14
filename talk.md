@@ -6,7 +6,7 @@ Pennock Tech, LLC.
 
 ---
 
-## Will cover:
+# Will cover:
 
 * what webhooks are
 * some examples of how they fit together
@@ -16,7 +16,7 @@ Want: to get you thinking about the possibilities
 
 ---
 
-## Webhooks are
+# Webhooks are
 
 * A contract to provide a push notification, to a URL of your choice
 * Often with a useful payload
@@ -24,15 +24,26 @@ Want: to get you thinking about the possibilities
 
 That's it.
 
-FADE: But recipients should be careful about trusting the payload
-FADE: the offerer might have to support multiple formats
+![adding webhook on github](github-webhook-cfg.png)
 
 ---
 
-## Let's make this real
+# Webhooks are
 
-NOTE: so far, it's been abstract; if you already know about webhooks, that's
-great, but let's reify things for those who don't.
+* A contract to provide a push notification, to a URL of your choice
+* Often with a useful payload
+  + these days, usually JSON
+
+That's it.
+
+* But recipients should be careful about trusting the payload
+* the offerer might have to support multiple formats
+
+---
+
+# Let's make this real
+
+.notes: so far, it's been abstract; if you already know about webhooks, that's great, but let's reify things for those who don't.
 
 * Slack, GitHub, Jira
 * IFTTT, Dropbox, LuaDNS
@@ -40,13 +51,13 @@ great, but let's reify things for those who don't.
 
 ---
 
-## Cliché Example: GitHub → Slack
+# Cliché Example: GitHub → Slack
 
 Precanned FIXME
 
 ---
 
-## Example: Slack slash-command
+# Example: Slack slash-command
 
 Rather than let a service see everything happening in your Slack team, instead
 add a `/command` which sends its arguments to the service as a webhook;
@@ -60,13 +71,15 @@ Simple example: wrote a `/uuid` command for $reasons
 Use a library to hide the Slack details and potentially handle multiple chat
 systems; put chat system into URL somewhere!
 
-NOTE: irony
-NOTE: `~/go/src/github.com/brettbuddin/victor% rm -rf pkg/chat/slackRealtime`
-NOTE: `vi robot.go` and disable import
+.notes: irony
+
+.notes: `~/go/src/github.com/brettbuddin/victor% rm -rf pkg/chat/slackRealtime`
+
+.notes: `vi robot.go` and disable import
 
 ---
 
-## Example: DNS update on git push
+# Example: DNS update on git push
 
 * GitHub or Bitbucket hosting a repo with zonefile information therein
 * A DNS provider who receive notifications of updates via webhook
@@ -80,7 +93,7 @@ Caveat: no DNSSEC support with LuaDNS
 
 ---
 
-## DNS / Git Setup 1
+# DNS / Git Setup 1
 
 * Create a free account <https://api.luadns.com/signup>
 * Created zone, `philpennock.net`
@@ -96,7 +109,15 @@ Caveat: no DNSSEC support with LuaDNS
 
 ---
 
-## DNS / Git Setup 2
+# LuaDNS Screenshot
+
+(To hide my API key from you)
+
+![LuaDNS settings page](luadns-settings.png)
+
+---
+
+# DNS / Git Setup 2
 
 * GitHub: add webhook → https://api.luadns.com/notifications/${API_TOKEN:?}/push
 * luadns.net: set the one git repo which is tied to the account:
@@ -109,15 +130,21 @@ Caveat: no DNSSEC support with LuaDNS
 
 _Will demo an update live_
 
-NOTE: <https://api.luadns.com/zones>
-NOTE: <https://api.luadns.com/zones/39060>
-NOTE: `luadns-settings.png` to hide API key
-NOTE: `~/etc/dns/dns-luahosting`
-NOTE: discuss the async webhook, notifying system to try to update
+.notes: <https://api.luadns.com/zones>
+
+.notes: <https://api.luadns.com/zones/39060>
+
+.notes: `luadns-settings.png` to hide API key
+
+.notes: `~/etc/dns/dns-luahosting`
+
+.notes: discuss the async webhook, notifying system to try to update
+
+.notes: could use `slave()` to set up secondarying, point NS elsewhere, and sign elsewhere, if trust path to luadns, but that somewhat defeats the point
 
 ---
 
-## Concept: Automatic to ...
+# Concept: Automatic to ...
 
 Automatic provide an OBD-II dongle for cars
 
@@ -134,7 +161,7 @@ Automatic provide an OBD-II dongle for cars
 
 ---
 
-## Automatic ideas
+# Automatic ideas
 
 1. When a trip finishes, always receive a Pushover mobile notification with
    details.
@@ -146,38 +173,37 @@ Automatic provide an OBD-II dongle for cars
 
 ---
 
-```
-{
-  "id": "f61ba3d5-a68e-43eb-a731-0db871b4d3a3",
-  "user": {
-    "id": "U_ffd955ba63db5c25",
-    "url": "https://api.automatic.com/user/U_ffd955ba63db5c25/"
-  },
-  "type": "trip:finished",
-  "created_at": "2015-04-12T17:45:18.123Z",
-  "time_zone": "America/Los_Angeles",
-  "location": {
-    "lat": 37.757076,
-    "lon": -122.448120,
-    "accuracy_m": 10,
-    "created_at": "2015-04-12T17:45:01.123Z"
-  },
-  "vehicle": {
-    "id": "C_507d6f1bd6d9b855",
-    "url": "https://api.automatic.com/vehicle/C_507d6f1bd6d9b855/"
-  },
-  "device" : {
-    "id": "021ac91c826b12eca99e685c"
-  },
-  "trip" {
-    // Trip Object (matches REST API)
+  !json
+  {
+    "id": "f61ba3d5-a68e-43eb-a731-0db871b4d3a3",
+    "user": {
+      "id": "U_ffd955ba63db5c25",
+      "url": "https://api.automatic.com/user/U_ffd955ba63db5c25/"
+    },
+    "type": "trip:finished",
+    "created_at": "2015-04-12T17:45:18.123Z",
+    "time_zone": "America/Los_Angeles",
+    "location": {
+      "lat": 37.757076,
+      "lon": -122.448120,
+      "accuracy_m": 10,
+      "created_at": "2015-04-12T17:45:01.123Z"
+    },
+    "vehicle": {
+      "id": "C_507d6f1bd6d9b855",
+      "url": "https://api.automatic.com/vehicle/C_507d6f1bd6d9b855/"
+    },
+    "device" : {
+      "id": "021ac91c826b12eca99e685c"
+    },
+    "trip" {
+      // Trip Object (matches REST API)
+    }
   }
-}
-```
 
 ---
 
-## Common Themes
+# Common Themes
 
 * URL specified
 * One, perhaps two, choices in content type
@@ -186,7 +212,7 @@ Automatic provide an OBD-II dongle for cars
 
 ---
 
-## Sending webhooks from your service
+# Sending webhooks from your service
 
 -------------------------------8< Talk Blurb >8-------------------------------
 The talk will include:
@@ -322,3 +348,5 @@ Check out the Dashboard if you see that a dispute was filed
 Make adjustments to an invoice when it's created (but before it's been paid)
 Log an accounting entry when a transfer is paid
 ---------------------------------8< stripe >8---------------------------------
+
+<!-- vim: set sw=2 et : -->
