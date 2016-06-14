@@ -48,7 +48,21 @@ Precanned FIXME
 
 ## Example: Slack slash-command
 
-Write some code to implement FIXME
+Rather than let a service see everything happening in your Slack team, instead
+add a `/command` which sends its arguments to the service as a webhook;
+synchronous, with the results inserted into the conversation.
+
+Simple example: wrote a `/uuid` command for $reasons
+
+<https://gist.github.com/philpennock/773ecabd5445de5c9aaf>  
+(Library dependency doesn't currently build, but can read the intent)
+
+Use a library to hide the Slack details and potentially handle multiple chat
+systems; put chat system into URL somewhere!
+
+NOTE: irony
+NOTE: `~/go/src/github.com/brettbuddin/victor% rm -rf pkg/chat/slackRealtime`
+NOTE: `vi robot.go` and disable import
 
 ---
 
@@ -95,6 +109,9 @@ Caveat: no DNSSEC support with LuaDNS
 
 _Will demo an update live_
 
+NOTE: <https://api.luadns.com/zones>
+NOTE: <https://api.luadns.com/zones/39060>
+NOTE: `luadns-settings.png` to hide API key
 NOTE: `~/etc/dns/dns-luahosting`
 NOTE: discuss the async webhook, notifying system to try to update
 
