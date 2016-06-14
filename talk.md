@@ -12,7 +12,7 @@ Pennock Tech, LLC.
 * some examples of how they fit together
 * good things to think about
 
-Want: to get you thinking about the possibilities
+Want to get you thinking about the possibilities
 
 ---
 
