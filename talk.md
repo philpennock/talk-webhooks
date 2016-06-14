@@ -62,7 +62,8 @@ That's it.
 .notes: so far, it's been abstract; if you already know about webhooks, that's great, but let's reify things for those who don't.
 
 * Slack, GitHub, Jira
-* IFTTT, Dropbox, LuaDNS
+* Dropbox, LuaDNS
+* IFTTT, Zapier
 * Mail providers, Automatic, much more
 * Pusher & Notify My Android (mobile notification); Amazon SNS
 
@@ -72,7 +73,18 @@ That's it.
 
 # Cliché Example: GitHub → Slack
 
-Precanned FIXME
+Things happen in your repository, find out about it where your team is
+talking.
+
+Simple.
+
+![The github-to-slack configuration](github-to-slack.png)
+
+---
+
+# GitHub → Slack Event Selection
+
+![Event selection screenshot](github-event-selection.png)
 
 ---
 
@@ -85,7 +97,8 @@ synchronous, with the results inserted into the conversation.
 Simple example: wrote a `/uuid` command for $reasons
 
 <https://gist.github.com/philpennock/773ecabd5445de5c9aaf>  
-(Library dependency doesn't currently build, but can read the intent)
+
+.notes: Library dependency doesn't currently build, but can read the intent
 
 Use a library to hide the Slack details and potentially handle multiple chat
 systems; put chat system into URL somewhere!
@@ -172,6 +185,11 @@ Run a plumbing layer to route messages!
 Or use IFTTT: "IF This, Then That".  But be sure to understand their business model first.  
 They support more than just webhooks.
 
+Or use Zapier.  They have a paid option.
+
+For breadth, the middleware plumbers support far more than just hooks, but
+that's the conceptual core.
+
 ---
 
 # Misc ideas
@@ -188,6 +206,9 @@ They support more than just webhooks.
   <https://beta.fastmail.com/help/technical/sieve-notify.html>; they don't
   support webhooks per se, but do support IFTTT, Pushover, Slack.  (If a
   paying customer, can always try asking for webhook support).
+* A monitoring system which can use arbitrary webhooks when events happen
+  (services start returning errors)
+    + If you know of one, please let me know
 
 ---
 
@@ -257,12 +278,14 @@ Automatic provide an OBD-II dongle for cars
 
 ---
 
-# Common Themes
+# Common Themes Seen
 
-* URL specified
+* URL specified; auth of sender in URL as token
 * One, perhaps two, choices in content type
-* Sender will sign payload, custom mechanism
+* Sender will sign payload, custom mechanism; proves _content_
 * Often, content not trusted by receiver
+* Selection of event types for which the hook will fire
+* Testing option to fire dummy events!
 
 ---
 
@@ -298,7 +321,36 @@ Automatic provide an OBD-II dongle for cars
 * Figure out what are notifiable events
 * What do your own systems trigger on?
 * Do you already use a message queue system which lets multiple subscribers
-  receive the same message
+  receive the same message [...]
+* Can you drop messages?  What should recipients do?
+* How do you handle retries?
+* How can a network outage or malicious hook receiver cause you pain?
+    + Where are your trust boundaries, for _outbound_ messages, where you have
+      not pre-chosen who you talk to?
+    + Do you want to have the attack surface extend into every component?
+
+---
+
+# Message Queue approach
+
+You probably have many components generating events, and communicating.  You
+may even be using a message queue already.
+
+Why not have a webhook broker, isolated as its own running service, receiving
+messages which everything else is receiving anyway?  Put the attack surface in
+one place, with consistent security policy and limited access to other
+components.  Gives you one sane place to take configuration from the
+recipients, central rate-limits and more.
+
+If some messages are high volume, you can split into multiple brokers
+subscribing to different message queues, or sharding a queue.
+
+Requirements: message resilience (your webhook issuer restarts), multiple
+subscribers to one queue.
+
+Amazon SQS; MQTT (Mosquitto); RabbitMQ
+
+.notes: <http://jpmens.net/archive/> for MQTT
 
 ---
 
@@ -441,6 +493,9 @@ Where does the boundary between a general programming API and a webhook API
 lay?  As a receiver, it's mostly about who dictates the content format and
 authorization.
 
+Message brokers usually trust subscribers and are organization internal;
+webhooks somewhat extend the message bus across trust boundaries.
+
 Where does the boundary between a streaming API and a webhook offering lay, as
 a sender?  Pretty much, volume and connection re-use.
 
@@ -457,7 +512,23 @@ Webhooks usually have the sender decide the authentication type and the
 receiver has to implement code for each sender.  A service with an API
 dictates the authentication type and senders need to implement it.
 
-Thus intermediaries such as IFTTT (or your own).
+Thus intermediaries such as IFTTT, Zapier, or your own.
+
+---
+
+# Alternatives
+
+Internal to an organization: a message queue.  ☺
+
+Across organizations:
+
+* XMPP, but that's really mostly intended for humans, and has changing signin
+  requirements for authentication, creating accounts in centralized services
+  for external providers (so corp org issues)
+* HTTP with pseudo-push (long poll; refresh; `multipart/x-mixed-replace`
+* HTTP with periodic polling (no push)
+* Websockets
+* Email (signed?)
 
 ---
 
@@ -469,15 +540,18 @@ I'm on the Code&Supply Slack, best way to reach me non-urgently.
 Work: <mailto:phil@pennock-tech.com>
 
 Some links:
+
 * <https://developer.github.com/webhooks/>
 * <https://developer.automatic.com/>
 * <https://beta.fastmail.com/help/technical/sieve-notify.html>
+* Slack:
+    + <https://api.slack.com/outgoing-webhooks>
+    + <https://api.slack.com/incoming-webhooks>
+    + <https://api.slack.com/slash-commands>
 
-<!--
-• Things that need to be thought of around resilience, rate-limiting, and so forth. HTTPS, and verification. 
-Authentication. Point towards token-based RBAC.
-• Walk through something neat and current, pulling together the strands of the talk. 
+---
 
--->
+<!-- This slide intentionally blank (let me move off the end in case of
+     embarrassment) -->
 
 <!-- vim: set sw=2 et : -->
