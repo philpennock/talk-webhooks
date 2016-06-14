@@ -18,9 +18,10 @@ Want: to get you thinking about the possibilities
 
 # Webhooks are
 
-* A contract to provide a push notification, to a URL of your choice
+* A contract to provide a push notification, via REST HTTP (`POST` method) to
+  a URL of your choice, whenever "something" of interest happens at the sender
 * Often with a useful payload
-  + these days, usually JSON
+    + these days, usually JSON
 
 That's it.
 
@@ -30,14 +31,29 @@ That's it.
 
 # Webhooks are
 
-* A contract to provide a push notification, to a URL of your choice
+* A contract to provide a push notification, via REST HTTP (`POST` method) to
+  a URL of your choice, whenever "something" of interest happens at the sender
 * Often with a useful payload
-  + these days, usually JSON
+    + these days, usually JSON
 
 That's it.
 
 * But recipients should be careful about trusting the payload
 * the offerer might have to support multiple formats
+* you might need to poll to backfill content
+* sometimes, as a receiver, they just fall out of a general API
+
+---
+
+# Stripe
+
+> You might use webhooks to:
+>
+> * Update a customer's membership record in your database when a subscription payment succeeds
+> * Email a customer when a subscription payment fails
+> * Check out the Dashboard if you see that a dispute was filed
+> * Make adjustments to an invoice when it's created (but before it's been paid)
+> * Log an accounting entry when a transfer is paid
 
 ---
 
@@ -48,6 +64,9 @@ That's it.
 * Slack, GitHub, Jira
 * IFTTT, Dropbox, LuaDNS
 * Mail providers, Automatic, much more
+* Pusher & Notify My Android (mobile notification); Amazon SNS
+
+.notes: Content format between sender and receiver?  Who controls?  We'll revisit.
 
 ---
 
@@ -187,6 +206,8 @@ Automatic provide an OBD-II dongle for cars
 
 (No longer targeting consumers)
 
+![logo](automatic.png)
+
 ---
 
 # Automatic ideas
@@ -278,106 +299,181 @@ Automatic provide an OBD-II dongle for cars
 
 ---
 
+# Implementing local Git webhooks
+
+Git has hooks, based on actions happening, run as commands.  They can do
+whatever you want, based on the information available.  You can use shell and
+`curl` to implement your own webhook sending.  Or you can be sane, post
+information into a message queue, and let something else take care of retries
+and so forth.
+
+* `$ git help hooks`
+* Sensible hooks for a repo on a server, in order:
+    1. **`pre-receive`** deciding whether someone allowed to push to a certain ref (ACLs)
+    2. **`update`** deciding whether something is acceptable as an update
+        + objects already stored
+        + synchronous call to a webhook
+    3. **`post-receive`** for notifications, async (no ability to influence git, but can send messages to remote user)
+
+---
+
+# Build chain
+
+Git repo hosters, following GitHub's lead, let you tie into the code merge
+process quite extensibly via webhooks:
+
+* Branch push triggering Continuous Integration tests
+    + Results of tests visible in GitHub UI, to show failures, even block
+      merges to master until status checks all pass
+* Can implement code-review approval too, same mechanism, but comments on PR
+  contain keywords used by webhook responder to decide whether to allow
+    + LGTM: <https://lgtm.co/docs/overview/>
+* Continuous Deployment:
+    + Merge to master automatically triggering deploys, or image creation
+      (Hashicorp Atlas managing Packer)
+    + Some flows actually do this on branches and must deploy successfully to
+      merge.
+* Plus the usual Slack notifications.  Or ...
+* Other build artifacts, other deployments?
+    + GitBook for documentation updates
+
+---
+
+# Approval via Slack
+
+1. Webhook on PR creation posts to service which posts to Slack (or does both
+   in parallel)
+2. Service uses <https://developer.github.com/v3/repos/statuses/> Statuses API
+   to create a `pending` status
+3. Service looks at `MAINTAINERS` file (like [LGTM](https://lgtm.co/)) and has
+   service configuration mapping to GitHub identifiers (perhaps in-repo)
+4. People LGTM on Slack in the special channel, or with a /slash-command
+5. Service tracks approvals, uses GitHub authenticated API (not webhooks) to
+   move the status to `failure` or `success`
+
+Be sure to think about how to recover state after service restart.
+
+---
+
 # Sending: concerns
 
 * Will you send payload?
 * Take per-hook secret configuration, for HMAC signing?
 * How do you let folks resync?
 * Reliability
-
+* Avoiding being a DDoS target
+* Use `Referer:` to appear in logs with an identifier to help folks know
+  someone requested this, and point to abuse desk?
 
 ---
 
-# Some Links
+# Content Format
 
+If you're new, you're going to support common receivers yourself, and be able
+to munge data to fit enough common schemas to be easy.
+
+If you're big, you send in one format, have a few trusted partners who are
+button-click integrations, and otherwise expect people to parse _your_ format.
+
+Where does the boundary lie?  What's the reaction when you shift across?
+
+Politics and power.
+
+---
+
+# Receiving: concerns
+
+* You're receiving HTTP from the open Internet.  What do you do based on that?
+* Ignore content, always take safe actions?  Securely poll authoritative
+  source for real data?  How often?
+* Rate-limits!  Especially if data is not valid
+* **Always** require HTTPS, with valid certificate.
+* If accepting from specific services, implement verification for their sending authentication mechanism
+* Secrets leak!  How do you handle rotation?
+* Will you want multiple services to send to you?  With what content format?
+  Design your URL namespace to include the sender service, or a name for the
+  content?  Or just provide an API and make the sender munge their payload for
+  you?
+
+---
+
+# Authentication
+
+* often just by having the secret for the URL as a token; password in the URL
+* optionally also HMAC signed content in a header
+    + GitHub: `X-Hub-Signature:`
+    + Mandrill/Mailchimp: `X-Mandrill-Signature:`
+    + Trello: `X-Trello-Webhook:`
+    + Pusher: `X-Pusher-Key:` / `X-Pusher-Signature:`
+* LogEntries: `Authorization:` header using `LE` scheme
+    + so doesn't play so well with proxies which tamper with authentication
+    + This is a _receiver_, with a streaming API which lets low-volume stuff
+      look like a webhook, but they dictate the format, so is it really a
+      webhook?
+
+_HMAC_: a hash which also covers a secret, in a way which prevents extension
+attacks.
+
+---
+
+# Proxies!
+
+The moment you offer an API over the Internet, you have to deal with folks
+behind brain-dead corporate proxies which tamper with _everything_.  Minimize
+the pain.
+
+Commonly proxies tamper with website auth, not just proxy auth, even though
+they "shouldn't".
+
+If it's not a password and isn't an access token (ie, password), but is
+something irreversibly derived (HMAC) so isn't morally a password, just put it
+in another header.
+
+---
+
+# Boundaries?
+
+Where does the boundary between a general programming API and a webhook API
+lay?  As a receiver, it's mostly about who dictates the content format and
+authorization.
+
+Where does the boundary between a streaming API and a webhook offering lay, as
+a sender?  Pretty much, volume and connection re-use.
+
+Webhooks are always asynchronously fired by the service offering to send them,
+not reacting to you asking "then" for events, but having configured a desire
+for events (perhaps via an API).
+
+Streaming APIs typically don't let you mutate state at the sender as part of
+the stream, whereas webhooks with a synchronous response might do so.
+
+Slack is a good example of a broad continuum.
+
+Webhooks usually have the sender decide the authentication type and the
+receiver has to implement code for each sender.  A service with an API
+dictates the authentication type and senders need to implement it.
+
+Thus intermediaries such as IFTTT (or your own).
+
+---
+
+# Fin
+
+Phil Pennock  
+GitHub: [@philpennock](https://github.com/philpennock)  
+I'm on the Code&Supply Slack, best way to reach me non-urgently.  
+Work: <mailto:phil@pennock-tech.com>
+
+Some links:
 * <https://developer.github.com/webhooks/>
 * <https://developer.automatic.com/>
+* <https://beta.fastmail.com/help/technical/sieve-notify.html>
 
----
-
--------------------------------8< Talk Blurb >8-------------------------------
-The talk will include:
-• Some simple demos of how things fit together to achieve useful ends, 3 or so decent examples covering breadth. 
-• Some very simple designs and an example of something working from them.
-• Some common patterns.
-• The leverage power tradeoffs in who speaks what data languages and how this influences webapp success.
+<!--
 • Things that need to be thought of around resilience, rate-limiting, and so forth. HTTPS, and verification. 
 Authentication. Point towards token-based RBAC.
 • Walk through something neat and current, pulling together the strands of the talk. 
--------------------------------8< Talk Blurb >8-------------------------------
 
-
-Slack
-Build notifications, etc
-IFTTT
-Email notifications -- ideal example; Sendgrid?  (but their Go example doesn't do what they say it does)
-
-Fastmail via Sieve scripting!
-  https://beta.fastmail.com/help/technical/sieve-notify.html
-  use IFTTT
-
-AWS Code Deploy
-  https://github.com/integrations/aws-codedeploy
-
-gitbook
-  https://github.com/integrations/gitbook
-  markdown / asciidoc
-
-Pusher:
-  push notifications for mobiles
-  https://pusher.com/docs/webhooks
-
-LGTM
-  https://lgtm.co/docs/overview/
-
-Atlas
-  https://github.com/integrations/atlas
-  The GitHub integration allows Atlas to automatically re-compile your
-  applications and package them for deployment using Packer. This makes it
-  easy to create Vagrant Boxes, AWS AMIs, Docker containers, etc
-
-Authentication:
-+ often just by having the secret for the URL as a token; password in the URL
-+ optionally also HMAC signed content in a header
-    * GitHub: X-Hub-Signature
-    * Mandrill/Mailchimp: X-Mandrill-Signature
-    * Trello: X-Trello-Webhook
-    * Pusher: X-Pusher-Key / X-Pusher-Signature
-    * LogEntries: Authorization: header using `LE` scheme
-      + so doesn't play so well with proxies which tamper with authentication
-+ authentication decided by poster, validated by receiver
-  - if content format decided by poster, this works fine; if decided by
-    receiver, you have N*M implementation variants to support
-
-Proxies!
-
-Where does the boundary between a general programming API and a webhook API
-lay?
-  Authorization: AWS _AWSAccessKeyId_:_Signature_
-  https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
-
-Boundary between a streaming API and a webhook?
-  Streaming is usually one persistent connection; otherwise, it's outbound REST
-  Streaming is usually defined as inbound, does auth, then turns around
-
-Using a git hook to trigger a web action; `git help hooks`
-  `post-receive` notifications (email, or webhook)
-  `pre-receive` deciding whether someone allowed to push to a certain ref
-  `update` deciding whether something is acceptable as an update (objects already stored, after pre-receive)
-
-Push notifications to mobile:
-
-  Amazon SNS
-  Pushover: https://pushover.net/
-
----------------------------------8< stripe >8---------------------------------
-You might use webhooks to:
-
-Update a customer's membership record in your database when a subscription payment succeeds
-Email a customer when a subscription payment fails
-Check out the Dashboard if you see that a dispute was filed
-Make adjustments to an invoice when it's created (but before it's been paid)
-Log an accounting entry when a transfer is paid
----------------------------------8< stripe >8---------------------------------
+-->
 
 <!-- vim: set sw=2 et : -->
