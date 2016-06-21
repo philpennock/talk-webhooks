@@ -4,6 +4,16 @@
 Phil Pennock  
 Pennock Tech, LLC.
 
+This talk is made available under the
+<a rel="license"
+href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons
+Attribution-NonCommercial 4.0 International License</a>  
+<img class="align-left" alt="CC BY-NC 4.0 license" style="border-width:0" src="CC-BY-NC-40.png">
+
+<br><br><br>
+
+Copyright 2016 Phil Pennock
+
 ---
 
 # Will cover:
